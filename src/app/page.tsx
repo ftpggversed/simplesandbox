@@ -15,8 +15,7 @@ import 'ace-builds/src-noconflict/mode-html';
 import 'ace-builds/src-noconflict/mode-css';
 import 'ace-builds/src-noconflict/mode-javascript';
 import 'ace-builds/src-noconflict/theme-twilight';
-
-const JSZip = require('jszip');
+import JSZip from 'jszip'; // Changed to default import
 
 export default function CodeSandboxPage() {
   const defaultHtml = '<h1>Hello, world!</h1>';
