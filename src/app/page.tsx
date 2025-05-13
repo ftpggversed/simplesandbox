@@ -15,7 +15,7 @@ import 'ace-builds/src-noconflict/mode-html';
 import 'ace-builds/src-noconflict/mode-css';
 import 'ace-builds/src-noconflict/mode-javascript';
 import 'ace-builds/src-noconflict/theme-twilight';
-// @ts-ignore: JSZip may not have type declarations
+
 const JSZip = require('jszip');
 
 export default function CodeSandboxPage() {
