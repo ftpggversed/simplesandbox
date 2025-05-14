@@ -18,7 +18,7 @@ import 'ace-builds/src-noconflict/mode-css';
 import 'ace-builds/src-noconflict/mode-javascript';
 import 'ace-builds/src-noconflict/theme-twilight';
 
-const JSZip = require('jszip');
+import * as JSZip from 'jszip'; // Changed to import * as
 
 export default function CodeSandboxPage() {
   const defaultHtml = '<h1>Hello, world!</h1>';
@@ -97,7 +97,7 @@ export default function CodeSandboxPage() {
   };
 
   const downloadZip = async () => {
-    const zip = new JSZip();
+    const zip = new (JSZip as any)(); // Type assertion to allow constructor call
     zip.file('index.html', html);
     zip.file('styles.css', css);
     zip.file('script.js', js);
@@ -117,7 +117,7 @@ export default function CodeSandboxPage() {
   return (
     <>
       <style jsx global>{` .ace_gutter { background: transparent !important; } `}</style>
-       {/* Navigation */}
+      {/* Navigation */}
       <nav className="bg-gray-800 text-gray-200 shadow-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
