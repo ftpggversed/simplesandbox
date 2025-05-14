@@ -22,40 +22,40 @@ import * as JSZip from 'jszip';
 
 export default function CodeSandboxPage() {
   const defaultHtml = '<h1>Hello, world!</h1>';
-  const defaultCss = 'body { font-family: sans-serif; }';
-  const defaultJs = 'console.log("Hello, Sandbox!");';
+  const defaultCss  = 'body { font-family: sans-serif; }';
+  const defaultJs   = 'console.log("Hello, Sandbox!");';
 
   const [html, setHtml] = useState(defaultHtml);
-  const [css, setCss] = useState(defaultCss);
-  const [js, setJs] = useState(defaultJs);
+  const [css,  setCss]  = useState(defaultCss);
+  const [js,   setJs]   = useState(defaultJs);
   const [srcUrl, setSrcUrl] = useState<string>('');
   const [autoRun, setAutoRun] = useState(true);
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
-  const [fontSize, setFontSize] = useState<'text-sm' | 'text-base' | 'text-lg'>('text-sm');
+  const [theme, setTheme] = useState<'dark'|'light'>('dark');
+  const [fontSize, setFontSize] = useState<'text-sm'|'text-base'|'text-lg'>('text-sm');
   const [consoleLogs, setConsoleLogs] = useState<string[]>([]);
-  const [errorLogs, setErrorLogs] = useState<string[]>([]);
+  const [errorLogs,   setErrorLogs]   = useState<string[]>([]);
   const [showDownloadMenu, setShowDownloadMenu] = useState(false);
-  const [activeTab, setActiveTab] = useState<'console' | 'errors'>('console');
+  const [activeTab, setActiveTab]     = useState<'console'|'errors'>('console');
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const previewRef = useRef<HTMLDivElement>(null);
 
-  // Load from localStorage
+  // Load saved code
   useEffect(() => {
     if (typeof window === 'undefined') return;
     setHtml(localStorage.getItem('sandbox-html') || defaultHtml);
-    setCss(localStorage.getItem('sandbox-css') || defaultCss);
-    setJs(localStorage.getItem('sandbox-js') || defaultJs);
+    setCss(localStorage.getItem('sandbox-css')   || defaultCss);
+    setJs(localStorage.getItem('sandbox-js')     || defaultJs);
   }, []);
 
-  // Persist to localStorage
+  // Persist on edits
   useEffect(() => { localStorage.setItem('sandbox-html', html); }, [html]);
-  useEffect(() => { localStorage.setItem('sandbox-css', css); }, [css]);
-  useEffect(() => { localStorage.setItem('sandbox-js', js); }, [js]);
+  useEffect(() => { localStorage.setItem('sandbox-css', css);   }, [css]);
+  useEffect(() => { localStorage.setItem('sandbox-js', js);     }, [js]);
 
   const aceFontSize = fontSize === 'text-sm' ? 12 : fontSize === 'text-base' ? 14 : 16;
 
-  // Build a data URL document
+  // Build data URL preview
   const runPreview = useCallback(() => {
     setConsoleLogs([]);
     setErrorLogs([]);
@@ -74,8 +74,8 @@ export default function CodeSandboxPage() {
   ${html}
   <script type="module">
     const send=(t,m)=>window.parent.postMessage({type:t,message:m},'*');
-    console.log = m => send('console', m);
-    console.error = e => send('error', e.stack||e.toString());
+    console.log  = m => send('console', m);
+    console.error= e => send('error', e.stack||e.toString());
   </script>
   <script type="module">
 ${js}
@@ -92,17 +92,22 @@ ${js}
     return () => clearTimeout(id);
   }, [html, css, js, autoRun, runPreview]);
 
-  // Listen for console messages
-  useEffect(() => {
-    const handler = (e: MessageEvent) => {
-      if (e.data?.type === 'console') setConsoleLogs(logs => [...logs, String(e.data.message)]);
-      if (e.data?.type === 'error')   setErrorLogs(errs => [...errs, String(e.data.message)]);
-    };
-    window.addEventListener('message', handler);
-    return () => window.removeEventListener('message', handler);
-  }, []);
+  // Listen console messages
+ useEffect(() => {
+  // Tell TS our message event carries { type: string; message: any }
+  const handler = (e: MessageEvent<{ type: string; message: unknown }>) => {
+    if (e.data.type === 'console') {
+      setConsoleLogs(logs => [...logs, String(e.data.message)]);
+    }
+    if (e.data.type === 'error') {
+      setErrorLogs(errs => [...errs, String(e.data.message)]);
+    }
+  };
+  window.addEventListener('message', handler);
+  return () => window.removeEventListener('message', handler);
+}, []);
 
-  // Fullscreen
+  // Fullscreen toggle
   const toggleFullscreen = () => {
     if (!previewRef.current) return;
     if (!isFullscreen) {
@@ -113,11 +118,11 @@ ${js}
   };
 
   // Download helpers
-  const downloadFile = (content: string, name: string, type: string) => {
-    const blob = new Blob([content], { type });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = name; a.click();
-    URL.revokeObjectURL(url);
+  const downloadFile = (c: string, n: string, t: string) => {
+    const b = new Blob([c], { type: t });
+    const u = URL.createObjectURL(b);
+    const a = document.createElement('a'); a.href = u; a.download = n; a.click();
+    URL.revokeObjectURL(u);
     setShowDownloadMenu(false);
   };
   const downloadZip = async () => {
@@ -127,14 +132,14 @@ ${js}
     zip.file('script.js', js);
     const blob = await zip.generateAsync({ type: 'blob' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = 'sandbox.zip'; a.click();
+    const a = document.createElement('a'); a.href = url; a.download = 'sandbox-files.zip'; a.click();
     URL.revokeObjectURL(url);
     setShowDownloadMenu(false);
   };
 
-  // Reset
+  // Reset defaults
   const handleReset = () => {
-    if (!confirm('Reset to defaults?')) return;
+    if (!confirm('Reset code to defaults?')) return;
     setHtml(defaultHtml);
     setCss(defaultCss);
     setJs(defaultJs);
@@ -147,7 +152,7 @@ ${js}
 
   return (
     <>
-      <style jsx global>{`.ace_gutter { background: transparent !important; }`}</style>
+      <style jsx global>{`.ace_gutter{background:transparent!important}`}</style>
 
       {/* Navbar */}
       <nav className="bg-gray-800 text-gray-200 shadow">
@@ -169,7 +174,7 @@ ${js}
           <button onClick={() => setAutoRun(a => !a)} className="p-2 bg-gray-800 rounded hover:bg-gray-700"><RefreshCw className={`w-5 h-5 ${autoRun ? 'text-green-400':'text-gray-600'}`}/></button>
           <button onClick={handleReset} className="p-2 bg-gray-800 rounded hover:bg-gray-700"><Trash2 className="w-5 h-5 text-red-400"/></button>
           <div className="relative">
-            <button onClick={() => setShowDownloadMenu(m => !m)} className="p-2 bg-gray-800 rounded hover:bg-gray-700 flex items-center">
+            <button onClick={() => setShowDownloadMenu(m => !m)} className="flex items-center p-2 bg-gray-800 rounded hover:bg-gray-700">
               <Archive className="w-5 h-5 text-indigo-400 mr-1"/><ChevronDown className="w-5 h-5 text-indigo-400"/>
             </button>
             {showDownloadMenu && (
@@ -182,7 +187,7 @@ ${js}
             )}
           </div>
           <button onClick={() => setTheme(t => t==='dark'?'light':'dark')} className="p-2 bg-gray-800 rounded hover:bg-gray-700">
-            {theme==='dark'? <Sun className="w-5 h-5 text-yellow-400"/> : <Moon className="w-5 h-5 text-blue-200"/>}
+            {theme==='dark'?<Sun className="w-5 h-5 text-yellow-400"/>:<Moon className="w-5 h-5 text-blue-200"/>}
           </button>
           <select value={fontSize} onChange={e => setFontSize(e.target.value as 'text-sm'|'text-base'|'text-lg')} className="p-2 bg-gray-800 rounded hover:bg-gray-700">
             <option value="text-sm">A</option>
@@ -196,10 +201,10 @@ ${js}
           <div className="w-1/2 grid grid-rows-3 gap-4 p-4">
             {[
               { label:'HTML', value:html, onChange:setHtml, mode:'html' as const },
-              { label:'CSS',  value:css,  onChange:setCss,  mode:'css'  as const },
+              { label:'CSS',  value:css,  onChange:setCss,  mode:'css' as const },
               { label:'JS',   value:js,   onChange:setJs,   mode:'javascript' as const },
             ].map((e,i)=>(
-              <div key={i} className="flex flex-col bg-gray-800 rounded shadow border border-gray-700">
+              <div key={i} className="flex flex-col bg-gray-800 rounded border border-gray-700 shadow">
                 <div className="px-4 py-2 border-b border-gray-700 text-indigo-300">{e.label}</div>
                 <AceEditor
                   mode={e.mode}
@@ -212,7 +217,7 @@ ${js}
                   width="100%"
                   height="100%"
                   fontSize={aceFontSize}
-                  style={{background:'transparent'}}
+                  style={{ background:'transparent' }}
                 />
               </div>
             ))}
@@ -220,27 +225,26 @@ ${js}
 
           {/* Preview + Logs */}
           <div className="w-1/2 p-4 flex flex-col gap-4">
-            <div ref={previewRef} className="relative flex-1 bg-gray-800 rounded shadow border border-gray-700 overflow-hidden">
-              <div className="px-4 py-2 border-b border-gray-700 text-indigo-300 font-medium">Preview</div>
-              {srcUrl ? (
-                <iframe src={srcUrl} sandbox="allow-scripts" className="w-full h-full"/>
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-gray-500">Waiting for preview…</div>
-              )}
+            <div ref={previewRef} className="relative flex-1 bg-gray-800 rounded border border-gray-700 shadow overflow-hidden">
+              <div className="px-4 py-2 border-b border-gray-700 text-indigo-300">Preview</div>
+              {srcUrl
+                ? <iframe src={srcUrl} sandbox="allow-scripts" className="w-full h-full"/>
+                : <div className="w-full h-full flex items-center justify-center text-gray-500">Waiting for preview…</div>
+              }
               <button onClick={toggleFullscreen} className="absolute bottom-2 right-2 p-2 bg-gray-800 rounded-full shadow hover:bg-gray-700" title={isFullscreen?'Exit Fullscreen':'Enter Fullscreen'}>
-                {isFullscreen ? <Minimize2 className="w-5 h-5 text-indigo-400"/> : <Maximize2 className="w-5 h-5 text-indigo-400"/>}
+                {isFullscreen? <Minimize2 className="w-5 h-5 text-indigo-400"/> : <Maximize2 className="w-5 h-5 text-indigo-400"/>}
               </button>
             </div>
 
             <div className="flex-none">
               <div className="flex space-x-4 mb-2">
-                <button onClick={()=>setActiveTab('console')} className={`px-4 py-2 ${activeTab==='console'?'bg-gray-800 text-white':'bg-gray-700 text-gray-400'} rounded-t-lg`}>Logs</button>
-                <button onClick={()=>setActiveTab('errors')}  className={`px-4 py-2 ${activeTab==='errors'?'bg-gray-800 text-white':'bg-gray-700 text-gray-400'} rounded-t-lg`}>Errors</button>
+                <button onClick={()=>setActiveTab('console')} className={`px-4 py-2 rounded-t-lg ${activeTab==='console'?'bg-gray-800 text-white':'bg-gray-700 text-gray-400'}`}>Logs</button>
+                <button onClick={()=>setActiveTab('errors')}  className={`px-4 py-2 rounded-t-lg ${activeTab==='errors'?'bg-gray-800 text-white':'bg-gray-700 text-gray-400'}`}>Errors</button>
               </div>
               <div className="bg-gray-800 rounded-b-lg border border-gray-700 shadow overflow-auto p-4 font-mono text-xs text-gray-100 h-32">
-                {(activeTab==='console'? consoleLogs : errorLogs).length === 0
+                {(activeTab==='console' ? consoleLogs : errorLogs).length === 0
                   ? <div className="text-gray-500">No {activeTab} yet</div>
-                  : (activeTab==='console'? consoleLogs : errorLogs).map((l,idx)=><div key={idx}>{l}</div>)
+                  : (activeTab==='console' ? consoleLogs : errorLogs).map((l,idx)=><div key={idx}>{l}</div>)
                 }
               </div>
             </div>
