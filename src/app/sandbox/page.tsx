@@ -29,7 +29,7 @@ export default function CodeSandboxPage() {
   const [html, setHtml] = useState(defaultHtml);
   const [css, setCss] = useState(defaultCss);
   const [js, setJs] = useState(defaultJs);
-  const [srcDoc, setSrcDoc] = useState('');
+  const [srcUrl, setSrcUrl] = useState<string>('');
   const [autoRun, setAutoRun] = useState(true);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [fontSize, setFontSize] = useState<'text-sm' | 'text-base' | 'text-lg'>('text-sm');
@@ -40,6 +40,7 @@ export default function CodeSandboxPage() {
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const previewContainerRef = useRef<HTMLDivElement>(null);
+  const previousBlobRef = useRef<string | null>(null);
 
   // Load saved code
   useEffect(() => {
@@ -56,33 +57,41 @@ export default function CodeSandboxPage() {
 
   const aceFontSize = fontSize === 'text-sm' ? 12 : fontSize === 'text-base' ? 14 : 16;
 
-  // Generate preview document
+  // Generate preview blob URL
   const runPreview = useCallback(() => {
     setConsoleLogs([]);
     setErrorLogs([]);
 
+    if (previousBlobRef.current) {
+      URL.revokeObjectURL(previousBlobRef.current);
+      previousBlobRef.current = null;
+    }
+
     const doc = `
 <html>
-  <head>
-    <style>
-      body { margin:0;padding:1rem;background:#fff;color:#000;font-family:sans-serif; }
-      ${css}
-    </style>
-  </head>
-  <body>
-    ${html}
-    <script type="module">
-      const send = (type, msg) => window.parent.postMessage({ type, message: msg }, '*');
-      console.log = m => send('console', m);
-      console.error = e => send('error', e.stack || e.toString());
-    </script>
-    <script type="module">
+<head>
+  <style>
+    body { margin:0;padding:1rem;background:#fff;color:#000;font-family:sans-serif; }
+    ${css}
+  </style>
+</head>
+<body>
+  ${html}
+  <script type="module">
+    const send = (type, msg) => window.parent.postMessage({ type, message: msg }, '*');
+    console.log = m => send('console', m);
+    console.error = e => send('error', e.stack || e.toString());
+  </script>
+  <script type="module">
 ${js}
-    </script>
-  </body>
+  </script>
+</body>
 </html>`;
 
-    setSrcDoc(doc);
+    const blob = new Blob([doc], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    previousBlobRef.current = url;
+    setSrcUrl(url);
   }, [html, css, js]);
 
   // Auto-run preview
@@ -150,7 +159,6 @@ ${js}
     <>
       <style jsx global>{`.ace_gutter { background: transparent !important; }`}</style>
 
-      {/* Navigation */}
       <nav className="bg-gray-800 text-gray-200 shadow-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between h-16 items-center">
           <Link href="/" className="text-2xl font-bold text-indigo-300 hover:text-indigo-200">Simple Sandbox</Link>
@@ -164,7 +172,6 @@ ${js}
       </nav>
 
       <div className={`flex flex-col h-[calc(100vh-64px)] bg-gradient-to-br from-gray-900 to-gray-800 text-gray-200 ${theme}`}>
-        {/* Toolbar */}
         <header className="flex items-center justify-end p-4 space-x-2 bg-transparent backdrop-blur-sm">
           <button onClick={runPreview} className="p-2 bg-gray-800 hover:bg-gray-700 rounded-md"><Play className="w-5 h-5 text-indigo-400" /></button>
           <button onClick={() => setAutoRun(a => !a)} className="p-2 bg-gray-800 hover:bg-gray-700 rounded-md"><RefreshCw className={`w-5 h-5 ${autoRun ? 'text-green-400' : 'text-gray-600'}`} /></button>
@@ -185,7 +192,7 @@ ${js}
           <button onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} className="p-2 bg-gray-800 hover:bg-gray-700 rounded-md">
             {theme === 'dark' ? <Sun className="w-5 h-5 text-yellow-400" /> : <Moon className="w-5 h-5 text-blue-200" />}
           </button>
-          <select value={fontSize} onChange={(e: ChangeEvent<HTMLSelectElement>) => setFontSize(e.target.value as 'text-sm' | 'text-base' | 'text-lg')} className="p-2 bg-gray-800 hover:bg-gray-700 rounded-md">
+          <select value={fontSize} onChange={(e: ChangeEvent<HTMLSelectElement>) => setFontSize(e.target.value as typeof fontSize)} className="p-2 bg-gray-800 hover:bg-gray-700 rounded-md">
             <option value="text-sm">A</option>
             <option value="text-base">A</option>
             <option value="text-lg">A</option>
@@ -193,12 +200,11 @@ ${js}
         </header>
 
         <div className="flex flex-1 overflow-hidden">
-          {/* Editor panes */}
           <div className="w-1/2 grid grid-rows-3 gap-4 p-4">
             {[
               { label: 'HTML', value: html, onChange: setHtml, mode: 'html' as const },
-              { label: 'CSS',  value: css,  onChange: setCss,  mode: 'css' as const },
-              { label: 'JS',   value: js,   onChange: setJs,   mode: 'javascript' as const },
+              { label: 'CSS', value: css, onChange: setCss, mode: 'css' as const },
+              { label: 'JS', value: js, onChange: setJs, mode: 'javascript' as const },
             ].map((e, i) => (
               <div key={i} className="flex flex-col bg-gray-800 rounded-xl shadow-md border border-gray-700">
                 <div className="px-4 py-2 border-b border-gray-700 text-indigo-300 font-medium">{e.label}</div>
@@ -219,18 +225,10 @@ ${js}
             ))}
           </div>
 
-          {/* Preview + Logs */}
-          <div className="w-1/2 flex flex-col p-4 gap-4">
-            {/* Preview Container */}
+          <div className="w-1/2 flex flex-col p-4 gap-4 relative">
             <div ref={previewContainerRef} className="relative flex-1 flex flex-col bg-gray-800 rounded-xl shadow-md border border-gray-700 overflow-hidden">
               <div className="px-4 py-2 border-b border-gray-700 text-indigo-300 font-medium">Preview</div>
-              <iframe
-                srcDoc={srcDoc}
-                sandbox="allow-scripts"
-                className="w-full h-full"
-              />
-
-              {/* Fullscreen button inside preview only */}
+              <iframe src={srcUrl} sandbox="allow-scripts allow-same-origin" className="w-full h-full" />
               <button
                 onClick={toggleFullscreen}
                 className="absolute bottom-2 right-2 p-2 bg-gray-800 hover:bg-gray-700 rounded-full shadow-lg"
@@ -240,17 +238,17 @@ ${js}
               </button>
             </div>
 
-            {/* Console / Error Logs */}
             <div className="flex-none">
               <div className="flex space-x-4 mb-2">
-                <button onClick={() => setActiveTab('console')} className={`px-4 py-2 rounded-t-lg ${activeTab==='console' ? 'bg-gray-800 text-white' : 'bg-gray-700 text-gray-400'}`}>Logs</button>
-                <button onClick={() => setActiveTab('errors')}  className={`px-4 py-2 rounded-t-lg ${activeTab==='errors'  ? 'bg-gray-800 text-white' : 'bg-gray-700 text-gray-400'}`}>Errors</button>
+                <button onClick={() => setActiveTab('console')} className={`px-4 py-2 rounded-t-lg ${activeTab === 'console' ? 'bg-gray-800 text-white' : 'bg-gray-700 text-gray-400'}`}>Logs</button>
+                <button onClick={() => setActiveTab('errors')} className={`px-4 py-2 rounded-t-lg ${activeTab === 'errors' ? 'bg-gray-800 text-white' : 'bg-gray-700 text-gray-400'}`}>Errors</button>
               </div>
               <div className="bg-gray-800 rounded-b-lg shadow-md border border-gray-700 overflow-auto p-4 font-mono text-xs text-gray-100 h-32">
-                {(activeTab === 'console' ? consoleLogs : errorLogs).length === 0
-                  ? <div className="text-gray-500">No {activeTab} yet</div>
-                  : (activeTab === 'console' ? consoleLogs : errorLogs).map((l, idx) => <div key={idx}>{l}</div>)
-                }
+                {(activeTab === 'console' ? consoleLogs : errorLogs).length === 0 ? (
+                  <div className="text-gray-500">No {activeTab} yet</div>
+                ) : (
+                  (activeTab === 'console' ? consoleLogs : errorLogs).map((l, idx) => <div key={idx}>{l}</div>)
+                )}
               </div>
             </div>
           </div>
