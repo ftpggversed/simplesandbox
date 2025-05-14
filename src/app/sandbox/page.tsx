@@ -185,7 +185,7 @@ ${js}
           <button onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} className="p-2 bg-gray-800 hover:bg-gray-700 rounded-md">
             {theme === 'dark' ? <Sun className="w-5 h-5 text-yellow-400" /> : <Moon className="w-5 h-5 text-blue-200" />}
           </button>
-          <select value={fontSize} onChange={(e: ChangeEvent<HTMLSelectElement>) => setFontSize(e.target.value as any)} className="p-2 bg-gray-800 hover:bg-gray-700 rounded-md">
+          <select value={fontSize} onChange={(e: ChangeEvent<HTMLSelectElement>) => setFontSize(e.target.value as 'text-sm' | 'text-base' | 'text-lg')} className="p-2 bg-gray-800 hover:bg-gray-700 rounded-md">
             <option value="text-sm">A</option>
             <option value="text-base">A</option>
             <option value="text-lg">A</option>
