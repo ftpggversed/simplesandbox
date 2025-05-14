@@ -29,7 +29,7 @@ export default function CodeSandboxPage() {
   const [html, setHtml] = useState(defaultHtml);
   const [css, setCss] = useState(defaultCss);
   const [js, setJs] = useState(defaultJs);
-  const [srcUrl, setSrcUrl] = useState<string>('');
+  const [srcUrl, setSrcUrl] = useState<string>('');  // will hold data URL
   const [autoRun, setAutoRun] = useState(true);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [fontSize, setFontSize] = useState<'text-sm' | 'text-base' | 'text-lg'>('text-sm');
@@ -40,9 +40,8 @@ export default function CodeSandboxPage() {
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const previewContainerRef = useRef<HTMLDivElement>(null);
-  const previousBlobRef = useRef<string | null>(null);
 
-  // Load saved code
+  // Load saved code on mount
   useEffect(() => {
     if (typeof window === 'undefined') return;
     setHtml(localStorage.getItem('sandbox-html') || defaultHtml);
@@ -50,26 +49,23 @@ export default function CodeSandboxPage() {
     setJs(localStorage.getItem('sandbox-js') || defaultJs);
   }, []);
 
-  // Persist code
+  // Persist code changes
   useEffect(() => { localStorage.setItem('sandbox-html', html); }, [html]);
   useEffect(() => { localStorage.setItem('sandbox-css', css); }, [css]);
   useEffect(() => { localStorage.setItem('sandbox-js', js); }, [js]);
 
   const aceFontSize = fontSize === 'text-sm' ? 12 : fontSize === 'text-base' ? 14 : 16;
 
-  // Generate preview blob URL
+  // Generate a data URL for the preview
   const runPreview = useCallback(() => {
     setConsoleLogs([]);
     setErrorLogs([]);
 
-    if (previousBlobRef.current) {
-      URL.revokeObjectURL(previousBlobRef.current);
-      previousBlobRef.current = null;
-    }
-
     const doc = `
+<!DOCTYPE html>
 <html>
 <head>
+  <meta charset="utf-8">
   <style>
     body { margin:0;padding:1rem;background:#fff;color:#000;font-family:sans-serif; }
     ${css}
@@ -87,25 +83,22 @@ ${js}
   </script>
 </body>
 </html>`;
-
-    const blob = new Blob([doc], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    previousBlobRef.current = url;
-    setSrcUrl(url);
+    const dataUrl = 'data:text/html;charset=utf-8,' + encodeURIComponent(doc);
+    setSrcUrl(dataUrl);
   }, [html, css, js]);
 
-  // Auto-run preview
+  // Auto-run on changes
   useEffect(() => {
     if (!autoRun) return;
-    const timer = setTimeout(runPreview, 300);
-    return () => clearTimeout(timer);
+    const t = setTimeout(runPreview, 300);
+    return () => clearTimeout(t);
   }, [html, css, js, autoRun, runPreview]);
 
-  // Listen for console messages
+  // Receive console/error logs from iframe
   useEffect(() => {
     const handler = (e: MessageEvent) => {
       if (e.data?.type === 'console') setConsoleLogs(prev => [...prev, String(e.data.message)]);
-      if (e.data?.type === 'error') setErrorLogs(prev => [...prev, String(e.data.message)]);
+      if (e.data?.type === 'error')   setErrorLogs(prev => [...prev, String(e.data.message)]);
     };
     window.addEventListener('message', handler);
     return () => window.removeEventListener('message', handler);
@@ -129,7 +122,6 @@ ${js}
     URL.revokeObjectURL(url);
     setShowDownloadMenu(false);
   };
-
   const downloadZip = async () => {
     const zip = new JSZip.default();
     zip.file('index.html', html);
@@ -142,7 +134,7 @@ ${js}
     setShowDownloadMenu(false);
   };
 
-  // Reset code
+  // Reset to defaults
   const handleReset = () => {
     if (!confirm('Reset code to defaults?')) return;
     setHtml(defaultHtml);
@@ -159,20 +151,23 @@ ${js}
     <>
       <style jsx global>{`.ace_gutter { background: transparent !important; }`}</style>
 
+      {/* Navigation */}
       <nav className="bg-gray-800 text-gray-200 shadow-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between h-16 items-center">
           <Link href="/" className="text-2xl font-bold text-indigo-300 hover:text-indigo-200">Simple Sandbox</Link>
           <div className="flex space-x-4">
-            <Link href="/" className="px-3 py-2 rounded-md text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white">Home</Link>
-            <Link href="/about" className="px-3 py-2 rounded-md text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white">About</Link>
-            <Link href="/sandbox" className="px-3 py-2 rounded-md text-sm font-medium bg-gray-700 text-white">Sandbox</Link>
-            <Link href="/settings" className="px-3 py-2 rounded-md text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white">Settings</Link>
+            <Link href="/" className="px-3 py-2 rounded-md text-sm text-gray-300 hover:bg-gray-700">Home</Link>
+            <Link href="/about" className="px-3 py-2 rounded-md text-sm text-gray-300 hover:bg-gray-700">About</Link>
+            <Link href="/sandbox" className="px-3 py-2 rounded-md text-sm bg-gray-700 text-white">Sandbox</Link>
+            <Link href="/settings" className="px-3 py-2 rounded-md text-sm text-gray-300 hover:bg-gray-700">Settings</Link>
           </div>
         </div>
       </nav>
 
+      {/* Main */}
       <div className={`flex flex-col h-[calc(100vh-64px)] bg-gradient-to-br from-gray-900 to-gray-800 text-gray-200 ${theme}`}>
-        <header className="flex items-center justify-end p-4 space-x-2 bg-transparent backdrop-blur-sm">
+        {/* Toolbar */}
+        <header className="flex items-center justify-end p-4 space-x-2 backdrop-blur-sm">
           <button onClick={runPreview} className="p-2 bg-gray-800 hover:bg-gray-700 rounded-md"><Play className="w-5 h-5 text-indigo-400" /></button>
           <button onClick={() => setAutoRun(a => !a)} className="p-2 bg-gray-800 hover:bg-gray-700 rounded-md"><RefreshCw className={`w-5 h-5 ${autoRun ? 'text-green-400' : 'text-gray-600'}`} /></button>
           <button onClick={handleReset} className="p-2 bg-gray-800 hover:bg-gray-700 rounded-md"><Trash2 className="w-5 h-5 text-red-400" /></button>
@@ -181,7 +176,7 @@ ${js}
               <Archive className="w-5 h-5 text-indigo-400 mr-1" /><ChevronDown className="w-5 h-5 text-indigo-400" />
             </button>
             {showDownloadMenu && (
-              <div className="absolute right-0 mt-2 w-40 bg-gray-800 rounded-md shadow-lg ring-1 ring-black ring-opacity-20 z-10">
+              <div className="absolute right-0 mt-2 w-40 bg-gray-800 rounded-md shadow-lg ring-1 ring-black ring-opacity-20">
                 <button onClick={() => downloadFile(html, 'index.html', 'text/html')} className="block w-full px-4 py-2 text-left text-gray-100 hover:bg-gray-700">HTML</button>
                 <button onClick={() => downloadFile(css, 'styles.css', 'text/css')} className="block w-full px-4 py-2 text-left text-gray-100 hover:bg-gray-700">CSS</button>
                 <button onClick={() => downloadFile(js, 'script.js', 'application/javascript')} className="block w-full px-4 py-2 text-left text-gray-100 hover:bg-gray-700">JS</button>
@@ -200,11 +195,12 @@ ${js}
         </header>
 
         <div className="flex flex-1 overflow-hidden">
+          {/* Editors */}
           <div className="w-1/2 grid grid-rows-3 gap-4 p-4">
             {[
               { label: 'HTML', value: html, onChange: setHtml, mode: 'html' as const },
               { label: 'CSS', value: css, onChange: setCss, mode: 'css' as const },
-              { label: 'JS', value: js, onChange: setJs, mode: 'javascript' as const },
+              { label: 'JS',  value: js,  onChange: setJs,  mode: 'javascript' as const },
             ].map((e, i) => (
               <div key={i} className="flex flex-col bg-gray-800 rounded-xl shadow-md border border-gray-700">
                 <div className="px-4 py-2 border-b border-gray-700 text-indigo-300 font-medium">{e.label}</div>
@@ -225,10 +221,16 @@ ${js}
             ))}
           </div>
 
-          <div className="w-1/2 flex flex-col p-4 gap-4 relative">
-            <div ref={previewContainerRef} className="relative flex-1 flex flex-col bg-gray-800 rounded-xl shadow-md border border-gray-700 overflow-hidden">
+          {/* Preview + Logs */}
+          <div className="w-1/2 flex flex-col p-4 gap-4">
+            {/* Preview Pane */}
+            <div ref={previewContainerRef} className="relative flex-1 bg-gray-800 rounded-xl shadow-md border border-gray-700 overflow-hidden">
               <div className="px-4 py-2 border-b border-gray-700 text-indigo-300 font-medium">Preview</div>
-              <iframe src={srcUrl} sandbox="allow-scripts allow-same-origin" className="w-full h-full" />
+              {srcUrl ? (
+                <iframe src={srcUrl} sandbox="allow-scripts allow-same-origin" className="w-full h-full" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-gray-500">Preview will appear here</div>
+              )}
               <button
                 onClick={toggleFullscreen}
                 className="absolute bottom-2 right-2 p-2 bg-gray-800 hover:bg-gray-700 rounded-full shadow-lg"
@@ -238,10 +240,11 @@ ${js}
               </button>
             </div>
 
+            {/* Console / Error Logs */}
             <div className="flex-none">
               <div className="flex space-x-4 mb-2">
                 <button onClick={() => setActiveTab('console')} className={`px-4 py-2 rounded-t-lg ${activeTab === 'console' ? 'bg-gray-800 text-white' : 'bg-gray-700 text-gray-400'}`}>Logs</button>
-                <button onClick={() => setActiveTab('errors')} className={`px-4 py-2 rounded-t-lg ${activeTab === 'errors' ? 'bg-gray-800 text-white' : 'bg-gray-700 text-gray-400'}`}>Errors</button>
+                <button onClick={() => setActiveTab('errors')}  className={`px-4 py-2 rounded-t-lg ${activeTab === 'errors'  ? 'bg-gray-800 text-white' : 'bg-gray-700 text-gray-400'}`}>Errors</button>
               </div>
               <div className="bg-gray-800 rounded-b-lg shadow-md border border-gray-700 overflow-auto p-4 font-mono text-xs text-gray-100 h-32">
                 {(activeTab === 'console' ? consoleLogs : errorLogs).length === 0 ? (
