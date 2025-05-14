@@ -4,16 +4,18 @@ import { useState, useEffect, ChangeEvent } from 'react';
 import Link from 'next/link';
 import { Laptop } from 'lucide-react';
 
+type FontSize = 'text-sm' | 'text-base' | 'text-lg';
+
 export default function SettingsPage() {
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
-  const [fontSize, setFontSize] = useState<'text-sm' | 'text-base' | 'text-lg'>('text-base');
+  const [fontSize, setFontSize] = useState<FontSize>('text-base');
   const [autoRun, setAutoRun] = useState<boolean>(true);
   const [syntaxTheme, setSyntaxTheme] = useState<string>('twilight');
 
   // Load saved settings
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') as 'dark' | 'light';
-    const savedFont = localStorage.getItem('fontSize') as 'text-sm' | 'text-base' | 'text-lg';
+    const savedFont = localStorage.getItem('fontSize') as FontSize;
     const savedAuto = localStorage.getItem('autoRun');
     const savedSyntax = localStorage.getItem('syntaxTheme');
     if (savedTheme) setTheme(savedTheme);
@@ -36,20 +38,18 @@ export default function SettingsPage() {
       <nav className="bg-gray-800 text-gray-200 shadow-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
-            <div className="flex-shrink-0">
-              <Link href="/" className="text-2xl font-bold text-indigo-300 hover:text-indigo-200 transition">
+            <div className="flex items-center space-x-2">
+              <Laptop className="w-6 h-6 text-indigo-200" />
+              <Link href="/sandbox" className="text-2xl font-bold text-indigo-300 hover:text-indigo-200 transition">
                 Simple Sandbox
               </Link>
             </div>
             <div className="flex space-x-4">
-              <Link href="/" className="px-3 py-2 rounded-md text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white transition">
-                Home
+              <Link href="/sandbox" className="px-3 py-2 rounded-md text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white transition">
+                Sandbox
               </Link>
               <Link href="/about" className="px-3 py-2 rounded-md text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white transition">
                 About
-              </Link>
-              <Link href="/sandbox" className="px-3 py-2 rounded-md text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white transition">
-                Sandbox
               </Link>
               <Link href="/settings" className="px-3 py-2 rounded-md text-sm font-medium bg-gray-700 text-white transition">
                 Settings
@@ -63,7 +63,7 @@ export default function SettingsPage() {
       <main className="flex-1 p-6">
         <h1 className="text-4xl font-bold text-indigo-300 mb-8 text-center">Settings</h1>
         <div className="border border-indigo-300 text-indigo-300 p-3 rounded-md max-w-4xl mx-auto mb-6">
-          <strong>Note:</strong> These settings are currently cosmetic and do not affect the editor's behavior yet.
+          <strong>Note:</strong> These settings are currently cosmetic and do not affect the editor&apos;s behavior yet.
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
           {/* Appearance Card */}
@@ -83,7 +83,7 @@ export default function SettingsPage() {
                 <label>Editor Font Size</label>
                 <select
                   value={fontSize}
-                  onChange={(e: ChangeEvent<HTMLSelectElement>) => setFontSize(e.target.value as any)}
+                  onChange={(e: ChangeEvent<HTMLSelectElement>) => setFontSize(e.target.value as FontSize)}
                   className="px-3 py-2 bg-gray-700 rounded-md"
                 >
                   <option value="text-sm">Small</option>
@@ -107,8 +107,6 @@ export default function SettingsPage() {
               </button>
             </div>
           </div>
-
-         
 
           {/* Syntax Highlighting Card */}
           <div className="bg-gray-800 rounded-xl p-6 shadow-md md:col-span-2">
