@@ -97,7 +97,7 @@ export default function CodeSandboxPage() {
   };
 
   const downloadZip = async () => {
-    const zip = new (JSZip as any)()
+    const zip = new JSZip.default();
     zip.file('index.html', html);
     zip.file('styles.css', css);
     zip.file('script.js', js);
