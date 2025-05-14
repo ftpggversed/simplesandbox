@@ -97,7 +97,7 @@ export default function CodeSandboxPage() {
   };
 
   const downloadZip = async () => {
-    const zip = new (JSZip as any)(); // Type assertion to allow constructor call with namespace
+    const zip = new (JSZip as any)()
     zip.file('index.html', html);
     zip.file('styles.css', css);
     zip.file('script.js', js);
