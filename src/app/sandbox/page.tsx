@@ -12,6 +12,8 @@ import {
   Archive,
   Maximize2,
   Minimize2,
+  Menu,
+  X
 } from 'lucide-react';
 import AceEditor from 'react-ace';
 import 'ace-builds/src-noconflict/mode-html';
@@ -37,10 +39,10 @@ export default function CodeSandboxPage() {
   const [showDownloadMenu, setShowDownloadMenu] = useState(false);
   const [activeTab, setActiveTab]     = useState<'console'|'errors'>('console');
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState<boolean>(false);
 
   const previewRef = useRef<HTMLDivElement>(null);
 
-  // Load saved code
   useEffect(() => {
     if (typeof window === 'undefined') return;
     setHtml(localStorage.getItem('sandbox-html') || defaultHtml);
@@ -48,14 +50,12 @@ export default function CodeSandboxPage() {
     setJs(localStorage.getItem('sandbox-js')     || defaultJs);
   }, []);
 
-  // Persist on edits
   useEffect(() => { localStorage.setItem('sandbox-html', html); }, [html]);
   useEffect(() => { localStorage.setItem('sandbox-css', css);   }, [css]);
   useEffect(() => { localStorage.setItem('sandbox-js', js);     }, [js]);
 
   const aceFontSize = fontSize === 'text-sm' ? 12 : fontSize === 'text-base' ? 14 : 16;
 
-  // Build data URL preview
   const runPreview = useCallback(() => {
     setConsoleLogs([]);
     setErrorLogs([]);
@@ -85,29 +85,29 @@ ${js}
     setSrcUrl('data:text/html;charset=utf-8,' + encodeURIComponent(doc));
   }, [html, css, js]);
 
-  // Auto-run
   useEffect(() => {
     if (!autoRun) return;
     const id = setTimeout(runPreview, 300);
     return () => clearTimeout(id);
   }, [html, css, js, autoRun, runPreview]);
 
-  // Listen console messages
  useEffect(() => {
-  // Tell TS our message event carries { type: string; message: any }
-  const handler = (e: MessageEvent<{ type: string; message: unknown }>) => {
-    if (e.data.type === 'console') {
-      setConsoleLogs(logs => [...logs, String(e.data.message)]);
+  const handler = (event: MessageEvent) => {
+    // force TS to treat data as { type: string; message: unknown }
+    const { type, message } = event.data as { type: string; message: unknown };
+
+    if (type === 'console') {
+      setConsoleLogs(logs => [...logs, String(message)]);
     }
-    if (e.data.type === 'error') {
-      setErrorLogs(errs => [...errs, String(e.data.message)]);
+    if (type === 'error') {
+      setErrorLogs(errs => [...errs, String(message)]);
     }
   };
+
   window.addEventListener('message', handler);
   return () => window.removeEventListener('message', handler);
 }, []);
 
-  // Fullscreen toggle
   const toggleFullscreen = () => {
     if (!previewRef.current) return;
     if (!isFullscreen) {
@@ -117,12 +117,11 @@ ${js}
     }
   };
 
-  // Download helpers
-  const downloadFile = (c: string, n: string, t: string) => {
-    const b = new Blob([c], { type: t });
-    const u = URL.createObjectURL(b);
-    const a = document.createElement('a'); a.href = u; a.download = n; a.click();
-    URL.revokeObjectURL(u);
+  const downloadFile = (content: string, name: string, type: string) => {
+    const blob = new Blob([content], { type });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = name; a.click();
+    URL.revokeObjectURL(url);
     setShowDownloadMenu(false);
   };
   const downloadZip = async () => {
@@ -137,7 +136,6 @@ ${js}
     setShowDownloadMenu(false);
   };
 
-  // Reset defaults
   const handleReset = () => {
     if (!confirm('Reset code to defaults?')) return;
     setHtml(defaultHtml);
@@ -154,35 +152,63 @@ ${js}
     <>
       <style jsx global>{`.ace_gutter{background:transparent!important}`}</style>
 
-      {/* Navbar */}
-      <nav className="bg-gray-800 text-gray-200 shadow">
-        <div className="max-w-7xl mx-auto px-4 flex justify-between h-16 items-center">
-          <Link href="/" className="text-xl font-bold text-indigo-300">Sandbox</Link>
-          <div className="flex space-x-4">
-            <Link href="/" className="px-3 py-2 hover:bg-gray-700 rounded">Home</Link>
-            <Link href="/sandbox" className="px-3 py-2 bg-gray-700 rounded text-white">Sandbox</Link>
-            <Link href="/settings" className="px-3 py-2 hover:bg-gray-700 rounded">Settings</Link>
+      {/* Navigation */}
+      <nav className="bg-gray-800 text-gray-200 shadow-md">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-16 items-center">
+            <div className="flex items-center">
+              <button
+                className="md:hidden p-2 mr-4"
+                onClick={() => setMobileOpen(!mobileOpen)}
+              >
+                {mobileOpen ? <X className="w-6 h-6"/> : <Menu className="w-6 h-6"/>}
+              </button>
+              <Link href="/" className="text-2xl font-bold text-indigo-300 hover:text-indigo-200 transition">
+                Simple Sandbox
+              </Link>
+            </div>
+            <div className="hidden md:flex space-x-4">
+              <Link href="/" className="px-3 py-2 rounded-md text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white transition">
+                Home
+              </Link>
+              <Link href="/about" className="px-3 py-2 rounded-md text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white transition">
+                About
+              </Link>
+              <Link href="/sandbox" className="px-3 py-2 rounded-md text-sm font-medium bg-gray-700 text-white transition">
+                Sandbox
+              </Link>
+              <Link href="/settings" className="px-3 py-2 rounded-md text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white transition">
+                Settings
+              </Link>
+            </div>
           </div>
         </div>
+        {/* Mobile Menu */}
+        {mobileOpen && (
+          <div className="md:hidden bg-gray-800 px-4 pt-2 pb-4 space-y-1">
+            <Link href="/" className="block px-3 py-2 rounded-md text-base font-medium text-gray-300 hover:bg-gray-700 hover:text-white">Home</Link>
+            <Link href="/about" className="block px-3 py-2 rounded-md text-base font-medium text-gray-300 hover:bg-gray-700 hover:text-white">About</Link>
+            <Link href="/sandbox" className="block px-3 py-2 rounded-md text-base font-medium bg-gray-700 text-white">Sandbox</Link>
+            <Link href="/settings" className="block px-3 py-2 rounded-md text-base font-medium text-gray-300 hover:bg-gray-700 hover:text-white">Settings</Link>
+          </div>
+        )}
       </nav>
 
-      {/* Main */}
       <div className="flex flex-col h-[calc(100vh-64px)] bg-gray-900 text-gray-200">
-        {/* Toolbar */}
         <header className="flex items-center justify-end p-4 space-x-2 bg-gray-800/50 backdrop-blur-sm">
           <button onClick={runPreview} className="p-2 bg-gray-800 rounded hover:bg-gray-700"><Play className="w-5 h-5 text-indigo-400"/></button>
           <button onClick={() => setAutoRun(a => !a)} className="p-2 bg-gray-800 rounded hover:bg-gray-700"><RefreshCw className={`w-5 h-5 ${autoRun ? 'text-green-400':'text-gray-600'}`}/></button>
           <button onClick={handleReset} className="p-2 bg-gray-800 rounded hover:bg-gray-700"><Trash2 className="w-5 h-5 text-red-400"/></button>
-          <div className="relative">
+          <div className="relative z-50 inline-block">
             <button onClick={() => setShowDownloadMenu(m => !m)} className="flex items-center p-2 bg-gray-800 rounded hover:bg-gray-700">
               <Archive className="w-5 h-5 text-indigo-400 mr-1"/><ChevronDown className="w-5 h-5 text-indigo-400"/>
             </button>
             {showDownloadMenu && (
-              <div className="absolute right-0 bg-gray-800 rounded shadow mt-2 ring-1 ring-black ring-opacity-20">
-                <button onClick={() => downloadFile(html,'index.html','text/html')} className="block px-4 py-2 hover:bg-gray-700">HTML</button>
-                <button onClick={() => downloadFile(css,'styles.css','text/css')} className="block px-4 py-2 hover:bg-gray-700">CSS</button>
-                <button onClick={() => downloadFile(js,'script.js','application/javascript')} className="block px-4 py-2 hover:bg-gray-700">JS</button>
-                <button onClick={downloadZip} className="block px-4 py-2 hover:bg-gray-700">ZIP</button>
+              <div className="absolute right-0 mt-2 w-40 bg-gray-800 rounded shadow-lg ring-1 ring-black ring-opacity-20 z-50">
+                <button onClick={() => downloadFile(html,'index.html','text/html')} className="block w-full px-4 py-2 text-left text-gray-100 hover:bg-gray-700">HTML</button>
+                <button onClick={() => downloadFile(css,'styles.css','text/css')} className="block w-full px-4 py-2 text-left text-gray-100 hover:bg-gray-700">CSS</button>
+                <button onClick={() => downloadFile(js,'script.js','application/javascript')} className="block w-full px-4 py-2 text-left text-gray-100 hover:bg-gray-700">JS</button>
+                <button onClick={downloadZip} className="block w-full px-4 py-2 text-left text-gray-100 hover:bg-gray-700">ZIP</button>
               </div>
             )}
           </div>
@@ -197,7 +223,6 @@ ${js}
         </header>
 
         <div className="flex flex-1 overflow-hidden">
-          {/* Editors */}
           <div className="w-1/2 grid grid-rows-3 gap-4 p-4">
             {[
               { label:'HTML', value:html, onChange:setHtml, mode:'html' as const },
@@ -223,7 +248,6 @@ ${js}
             ))}
           </div>
 
-          {/* Preview + Logs */}
           <div className="w-1/2 p-4 flex flex-col gap-4">
             <div ref={previewRef} className="relative flex-1 bg-gray-800 rounded border border-gray-700 shadow overflow-hidden">
               <div className="px-4 py-2 border-b border-gray-700 text-indigo-300">Preview</div>
