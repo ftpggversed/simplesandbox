@@ -162,7 +162,7 @@ export default function SettingsPage() {
       {/* Footer */}
       <footer className="bg-gray-800 py-4">
         <div className="max-w-7xl mx-auto text-center text-gray-500 text-sm">
-          © {year} Simple Sandbox. All rights reserved.
+          © {year} Simple Sandbox. All rights reserved. test
         </div>
       </footer>
     </div>
